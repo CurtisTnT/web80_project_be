@@ -1,8 +1,9 @@
 import express from "express";
 import "dotenv/config";
+import cors from "cors";
 
 import connectDatabase from "./src/database/db.js";
-import RootRouter from "./src/routers/index.js";
+import RootRouter from "./src/routes/index.js";
 
 const app = express();
 
@@ -11,6 +12,14 @@ connectDatabase();
 
 //Middleware
 app.use(express.json());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    // credentials: true,
+    allowedHeaders: ["Authorization", "Content-Type"],
+    exposedHeaders: ["Authorization"],
+  })
+);
 
 //Routers
 app.use("/api/v1", RootRouter);

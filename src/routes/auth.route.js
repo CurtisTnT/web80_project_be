@@ -1,50 +1,50 @@
 import { Router } from "express";
 
-import userMiddleware from "../middlewares/user.middleware.js";
-import userController from "../controllers/user.controller.js";
+import authMiddleware from "../middlewares/auth.middleware.js";
+import authController from "../controllers/auth.controller.js";
 
 const AuthRoute = Router();
 
 AuthRoute.post(
   "/sign-up",
-  userMiddleware.createUserValidation,
-  userController.createUser
+  authMiddleware.signUpValidation,
+  authController.signUp
 );
 
 AuthRoute.post(
   "/sign-in",
-  userMiddleware.signInValidation,
-  userController.signIn
+  authMiddleware.signInValidation,
+  authController.signIn
 );
 
 AuthRoute.post(
   "/sign-out",
-  userMiddleware.authValidation,
-  userController.signOut
+  authMiddleware.authValidation,
+  authController.signOut
 );
 
 AuthRoute.post(
   "/check-auth",
-  userMiddleware.authValidation,
-  userController.checkLogin
+  authMiddleware.authValidation,
+  authController.checkLogin
 );
 
 AuthRoute.post(
   "/forgot-password",
-  userMiddleware.forgotPasswordValidation,
-  userController.forgotPassword
+  authMiddleware.forgotPasswordValidation,
+  authController.forgotPassword
 );
 
 AuthRoute.post(
   "/verify-otp",
-  userMiddleware.verifyOtpValidation,
-  userController.verifyOtp
+  authMiddleware.verifyOtpValidation,
+  authController.verifyOtp
 );
 
 AuthRoute.post(
   "/reset-password",
-  userMiddleware.resetPasswordValidation,
-  userController.resetPassword
+  authMiddleware.resetPasswordValidation,
+  authController.resetPassword
 );
 
 export default AuthRoute;

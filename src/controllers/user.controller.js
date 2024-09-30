@@ -1,25 +1,49 @@
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 
 import UserModel from "../models/user.model.js";
-import TokenModel from "../models/token.model.js";
-import { sendOtpEmail } from "../mailers/userMailer.js";
-import { generateSecureOTP } from "../utils/helpers.js";
-import OtpModel from "../models/otp.model.js";
 
-const secretKey = process.env.TOKEN_SECRET_KEY;
 const salt = bcrypt.genSaltSync();
 
 const userController = {
+  getUsers: async (req, res) => {
+    try {
+      const existUsers = await UserModel.find({
+        role: { $in: ["lead", "staff"] },
+      });
+
+      res.status(201).send({
+        isSuccess: true,
+        data: existUsers,
+        message: "Get users successfully!",
+      });
+    } catch (error) {
+      res.status(500).send({
+        isSuccess: false,
+        data: null,
+        message: error.message,
+      });
+    }
+  },
+
   createUser: async (req, res) => {
     try {
-      const { firstName, lastName, phoneNumber, email, password, role } =
-        req.body;
+      const {
+        firstName,
+        lastName,
+        phoneNumber,
+        email,
+        role,
+        designationLevel,
+        jobTitle,
+      } = req.body;
+      const userId = req.auth.userId;
 
       const existUser = await UserModel.findOne({ email });
-      if (existUser) throw new Error("Email already exists!");
+      if (existUser) throw new Error("User already exists!");
 
-      const hashedPassword = bcrypt.hashSync(password, salt);
+      const defaultPassword = "12345678";
+
+      const hashedPassword = bcrypt.hashSync(defaultPassword, salt);
 
       const saveUser = await UserModel.create({
         firstName,
@@ -28,13 +52,15 @@ const userController = {
         email,
         password: hashedPassword,
         role,
+        designationLevel,
+        jobTitle,
+        createdById: userId,
       });
 
       res.status(201).send({
         isSuccess: true,
         data: saveUser,
-        message:
-          "Your account has been successfully created. Please sign in using your credentials!",
+        message: "Create a new user successfully!",
       });
     } catch (error) {
       res.status(500).send({
@@ -45,70 +71,17 @@ const userController = {
     }
   },
 
-  signIn: async (req, res) => {
+  getDetailUser: async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { id } = req.params;
 
-      const existUser = await UserModel.findOne({ email });
-      if (!existUser) throw new Error("Invalid credentials!");
-
-      const isPasswordCorrect = bcrypt.compareSync(
-        password,
-        existUser.password
-      );
-
-      if (!isPasswordCorrect) throw new Error("Invalid credentials!");
-
-      const accessToken = await jwt.sign({ userId: existUser.id }, secretKey, {
-        expiresIn: "5m",
-      });
-
-      await TokenModel.create({ accessToken, userId: existUser.id });
-
-      res.header("authorization", `Bearer ${accessToken}`);
-      res.status(201).send({
-        isSuccess: true,
-        data: existUser,
-        message: "Sign in successfully!",
-      });
-    } catch (error) {
-      res.status(500).send({
-        isSuccess: false,
-        data: null,
-        message: error.message,
-      });
-    }
-  },
-
-  signOut: async (req, res) => {
-    try {
-      const { accessToken } = req.auth;
-      await TokenModel.findOneAndDelete({ accessToken });
-
-      res.status(201).send({
-        isSuccess: true,
-        data: null,
-        message: "Sign out successfully!",
-      });
-    } catch (error) {
-      res.status(500).send({
-        isSuccess: false,
-        data: null,
-        message: error.message,
-      });
-    }
-  },
-
-  checkLogin: async (req, res) => {
-    try {
-      const { userId } = req.auth;
-      const existUser = await UserModel.findById(userId);
+      const existUser = await UserModel.findById(id).populate("createdBy");
       if (!existUser) throw new Error("User not exist!");
 
       res.status(201).send({
         isSuccess: true,
         data: existUser,
-        message: "Check login successfully!",
+        message: "Get detail user successfully!",
       });
     } catch (error) {
       res.status(500).send({
@@ -119,22 +92,40 @@ const userController = {
     }
   },
 
-  forgotPassword: async (req, res) => {
+  updateUser: async (req, res) => {
     try {
-      const { email } = req.body;
-      const existUser = await UserModel.findOne({ email });
+      const { id } = req.params;
+      const {
+        firstName,
+        lastName,
+        phoneNumber,
+        avatar,
+        designationLevel,
+        jobTitle,
+        role,
+      } = req.body;
+
+      const existUser = await UserModel.findByIdAndUpdate(
+        id,
+        {
+          firstName,
+          lastName,
+          avatar,
+          phoneNumber,
+          designationLevel,
+          jobTitle,
+          role,
+        },
+        {
+          new: true,
+        }
+      ).populate("createdBy");
       if (!existUser) throw new Error("User not exist!");
 
-      const otp = generateSecureOTP();
-
-      await sendOtpEmail({ email, otp });
-
-      await OtpModel.create({ otp, email });
-
       res.status(201).send({
         isSuccess: true,
-        data: null,
-        message: `OTP is sent to ${email}. Please check your email and use this OTP to reset your password!`,
+        data: existUser,
+        message: "Update user successfully!",
       });
     } catch (error) {
       res.status(500).send({
@@ -145,48 +136,17 @@ const userController = {
     }
   },
 
-  verifyOtp: async (req, res) => {
+  deleteUser: async (req, res) => {
     try {
-      const { email, otp } = req.body;
-      const existOtp = await OtpModel.findOneAndDelete({ otp });
-      if (!existOtp || existOtp.email !== email)
-        throw new Error("Invalid OTP!");
+      const { id } = req.params;
+
+      const existUser = await UserModel.findByIdAndDelete(id);
+      if (!existUser) throw new Error("User not exist!");
 
       res.status(201).send({
         isSuccess: true,
-        data: null,
-        message: "Verify OTP successfully!",
-      });
-    } catch (error) {
-      res.status(500).send({
-        isSuccess: false,
-        data: null,
-        message: error.message,
-      });
-    }
-  },
-
-  resetPassword: async (req, res) => {
-    try {
-      const { email, curPassword, newPassword } = req.body;
-      const existUser = await UserModel.findOne({ email });
-      if (!existUser) throw new Error("Invalid credentials!");
-
-      const isPasswordCorrect = bcrypt.compareSync(
-        curPassword,
-        existUser.password
-      );
-      if (!isPasswordCorrect) throw new Error("Invalid credentials!");
-
-      const hashedPassword = bcrypt.hashSync(newPassword, salt);
-
-      await existUser.updateOne({ password: hashedPassword });
-
-      res.status(201).send({
-        isSuccess: true,
-        data: null,
-        message:
-          "Reset password successfully! Please sign in with your updated credentials!",
+        data: existUser,
+        message: "Delete user successfully!",
       });
     } catch (error) {
       res.status(500).send({

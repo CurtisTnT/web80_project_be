@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    avatar: {
+      type: String,
+      default: null,
+    },
     email: {
       type: String,
       required: true,
@@ -33,9 +37,35 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "lead", "staff"],
       required: true,
     },
+    designationLevel: {
+      type: String,
+      enum: ["intern", "entry", "middle", "senior", "management"],
+      default: null,
+    },
+    jobTitle: {
+      type: String,
+      enum: [
+        "feDev",
+        "beDev",
+        "fullStackDev",
+        "devops",
+        "uxUiDesigner",
+        "businessAnalyst",
+        "dataAnalyst",
+        "productOwner",
+      ],
+      default: null,
+    },
+    createdById: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: Collections.users,
+      default: null,
+    },
   },
   {
+    timestamps: true,
     toJSON: {
+      virtuals: true,
       transform: (doc, ret) => {
         ret.id = ret._id;
         delete ret.password;
@@ -46,6 +76,13 @@ const userSchema = new mongoose.Schema(
     },
   }
 );
+
+userSchema.virtual("createdBy", {
+  ref: Collections.users,
+  localField: "createdById",
+  foreignField: "_id",
+  justOne: true,
+});
 
 const UserModel = mongoose.model(Collections.users, userSchema);
 
